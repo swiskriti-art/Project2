@@ -1,0 +1,29 @@
+---
+title: "Store sales data"
+format: html
+editor: visual
+---
+
+Reading data from excel file
+```{r}
+library(tidyverse)
+library (readxl)
+store_data <- read_excel("US Superstore data.xls",
+                         .name_repair = function(nm) str_replace_all(nm, "[ -]", "_"))
+store_data
+
+```
+Creating factors for categrorical vars 
+```{r}
+store_data <- store_data |>
+ mutate(Ship_Mode = as.factor(Ship_Mode),
+   Segment = as.factor(Segment),
+   City = as.factor(City),
+   State = as.factor(State),
+   Region = as.factor(Region),
+   Category = as.factor(Category),
+   Sub_Category = as.factor(Sub_Category))
+store_data
+```
+
+
