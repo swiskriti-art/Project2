@@ -22,8 +22,61 @@ store_data <- store_data |>
    State = as.factor(State),
    Region = as.factor(Region),
    Category = as.factor(Category),
-   Sub_Category = as.factor(Sub_Category))
+   Sub_Category = as.factor(Sub_Category)) |>
+  rename(Sell_Price = Sales)
 store_data
 ```
 
+Creating one way contingency table
+```{r}
+table(store_data$Segment)
+
+```
+Creating two way contingency table
+```{r}
+table (store_data$Segment, store_data$Region)
+
+```
+Numerical variables
+
+```{r}
+summary <- store_data |>
+  group_by(year(Order_Date), State, Segment, Category) |>
+  summarize(across(c(Profit), .fns = list( "sum" = sum, "mean" = mean,
+                                                         "median" = median,
+                                                         "min" = min ,
+                                                         "max" = max),
+ .names = "{.fn}_{.col}"))
+summary |> view()
+
+#store_data |>
+#  group_by(State, Segment, Category, Sub_Category) 
+
+```
+
+Functions for creating  graph
+```{r}
+#bar_chart <- function(year, state)
+# Products having higest discount
+ggplot(data=store_data, 
+       aes(x = year(Order_Date), fill = Segment)) +
+  geom_bar(width = 0.5) +
+  labs(x = "Order Year", y = "Count", title = "Order Segment count by year")
+```
+Histogram
+```{r}
+ggplot(data = store_data  |>
+         filter(Profit > 0), 
+       aes(x = month(Order_Date, label = TRUE), y = Profit, fill = Category)) +
+  geom_col(alpha = 0.7) +
+  labs(x = "Order Month", y = "Profit", title = "Profit per month for category")
+```
+```{r}
+ggplot(data = store_data  |>
+         filter(Profit < 0), 
+       aes(x = month(Order_Date, label = TRUE), y = Profit, fill = Category)) +
+  geom_col(alpha = 0.7) +
+  labs(x = "Order Month", y = "Profit", title = "Loss per month for category")
+
+```
 
