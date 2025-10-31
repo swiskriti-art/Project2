@@ -61,7 +61,7 @@ Functions for creating  graph
 ggplot(data=store_data, 
        aes(x = year(Order_Date), fill = Segment)) +
   geom_bar(width = 0.5) +
-  labs(x = "Order Year", y = "Count", title = "Order Segment count by year")
+  labs(x = "Order Year", y = "Count", title = "Segment count by year")
 ```
 Histogram
 ```{r}
