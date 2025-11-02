@@ -89,10 +89,8 @@ line Graph
 ggplot(data = store_data, 
        mapping = aes(x= Category, y = Profit, fill= Category))+
   geom_boxplot() +
-  #scale_y_log10() +
-  #scale_y_continuous(breaks = seq(min(store_data$Profit), max(store_data$Profit),
-  #                                           by= 2000))
-  coord_cartesian(ylim = c(-2000, 2000))
+  coord_cartesian(ylim = c(-2000, 2000)) +
+  labs(title = "Boxplot for Profit per Category")
 
 ```
 ```{r}
@@ -100,6 +98,7 @@ ggplot(data = store_data,
        mapping = aes(x= Sub_Category, y = Profit, fill= Sub_Category))+
   geom_boxplot() +
   coord_cartesian(ylim = c(-2000, 2000)) +
+  labs(title = "Boxplot for profit per Sub-category", x= "Product Sub-Category") +
   theme(axis.text.x = element_text(angle = 45, vjust = 0.6))
 ```
 ```{r}
@@ -113,9 +112,10 @@ profit_data <- store_data |>
 ggplot(data= profit_data, aes(x =Year)) +
   geom_line(aes(y = sum_Profit/100 , col ="Total Profit")) +
   geom_line(aes(y = sum_Sell_Price/100, col = "Total Selling Price")) +
+  geom_point(aes(y = sum_Profit/100)) +
+  geom_point(aes(y = sum_Sell_Price/100)) +
   facet_grid(vars(Category)) +
-  labs(x = "Year", y = "USD(x100)")
-
+  labs(title="Trend for Profit and Selling price", x = "Year", y = "USD(x100)")
 
 ```
 
