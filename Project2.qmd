@@ -8,6 +8,7 @@ Reading data from excel file
 ```{r}
 library(tidyverse)
 library (readxl)
+library (ggcharts)
 store_data <- read_excel("US Superstore data.xls",
                          .name_repair = function(nm) str_replace_all(nm, "[ -]", "_"))
 store_data
@@ -42,7 +43,7 @@ Numerical variables
 ```{r}
 summary <- store_data |>
   group_by(year(Order_Date), State, Segment, Category) |>
-  summarize(across(c(Profit), .fns = list( "sum" = sum, "mean" = mean,
+  summarize(across(c(Profit, Sell_Price), .fns = list( "sum" = sum, "mean" = mean,
                                                          "median" = median,
                                                          "min" = min ,
                                                          "max" = max),
@@ -69,14 +70,56 @@ ggplot(data = store_data  |>
          filter(Profit > 0), 
        aes(x = month(Order_Date, label = TRUE), y = Profit, fill = Category)) +
   geom_col(alpha = 0.7) +
-  labs(x = "Order Month", y = "Profit", title = "Profit per month for category")
+  facet_wrap(vars(year(Order_Date))) +
+  theme(axis.text.x = element_text(angle =45, vjust = 0.6)) +
+  labs(x = "", y = "Profit", title = "Profit per month for category")
 ```
 ```{r}
 ggplot(data = store_data  |>
          filter(Profit < 0), 
        aes(x = month(Order_Date, label = TRUE), y = Profit, fill = Category)) +
   geom_col(alpha = 0.7) +
-  labs(x = "Order Month", y = "Profit", title = "Loss per month for category")
+  facet_wrap(vars(year(Order_Date))) +
+  theme(axis.text.x = element_text(angle =45, vjust = 0.6)) +
+  labs(x = "", y = "Profit", title = "Loss per month for category")
 
 ```
+line Graph
+```{r}
+ggplot(data = store_data, 
+       mapping = aes(x= Category, y = Profit, fill= Category))+
+  geom_boxplot() +
+  #scale_y_log10() +
+  #scale_y_continuous(breaks = seq(min(store_data$Profit), max(store_data$Profit),
+  #                                           by= 2000))
+  coord_cartesian(ylim = c(-2000, 2000))
+
+```
+```{r}
+ggplot(data = store_data, 
+       mapping = aes(x= Sub_Category, y = Profit, fill= Sub_Category))+
+  geom_boxplot() +
+  coord_cartesian(ylim = c(-2000, 2000)) +
+  theme(axis.text.x = element_text(angle = 45, vjust = 0.6))
+```
+```{r}
+# Comparing total profit vs total selling price for product categories
+profit_data <- store_data |>
+  group_by(year(Order_Date), Category) |>
+  summarize(across(c(Profit, Sell_Price), .fns = list( "sum" = sum),
+  .names = "{.fn}_{.col}")) |>
+  rename(Year = `year(Order_Date)`)
+
+ggplot(data= profit_data, aes(x =Year)) +
+  geom_line(aes(y = sum_Profit/100 , col ="Total Profit")) +
+  geom_line(aes(y = sum_Sell_Price/100, col = "Total Selling Price")) +
+  facet_grid(vars(Category)) +
+  labs(x = "Year", y = "USD(x100)")
+
+
+```
+
+
+ 
+
 
