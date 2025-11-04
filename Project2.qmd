@@ -64,7 +64,7 @@ ggplot(data=store_data,
   geom_bar(width = 0.5) +
   labs(x = "Order Year", y = "Count", title = "Segment count by year")
 ```
-Histogram
+
 ```{r}
 ggplot(data = store_data  |>
          filter(Profit > 0), 
@@ -99,7 +99,7 @@ ggplot(data = store_data,
   geom_boxplot() +
   coord_cartesian(ylim = c(-2000, 2000)) +
   labs(title = "Boxplot for profit per Sub-category", x= "Product Sub-Category") +
-  theme(axis.text.x = element_text(angle = 45, vjust = 0.6))
+  theme(axis.text.x = element_text(angle = 45, vjust = 0.6)) 
 ```
 ```{r}
 # Comparing total profit vs total selling price for product categories
