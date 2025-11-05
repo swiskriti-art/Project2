@@ -10,6 +10,9 @@
 library(shiny)
 library(DT)
 library(shinyalert)
+library (readxl)
+library(tidyverse)
+
 store_data <- read_excel("../US Superstore data.xls",
                          .name_repair = function(nm) str_replace_all(nm, "[ -]", "_"))
 store_data <- store_data |>
@@ -56,13 +59,15 @@ ui <- fluidPage(
                                    min = 0, max = 1, value = 0
                        )
       ),
-      actionButton(inputId = "btn",
+      actionButton(inputId = "subset_btn",
                    label = "Subset Data")
     ),
 
     mainPanel(
       tabsetPanel(
-        tabPanel("About", "Purpose: "  ),
+        tabPanel("About",
+                  "This UI gives the summary of US Superstore data. Users can analyze and explore data visually through interactive graphs like ggplot and tables.Summary statistics are used to check statistics like mean max min quartiles which gives user understand data's range and distribution.",
+                 "Purpose: Users can forecast data through selecting the slidebar and buttons"   ),
         tabPanel("Data Download",
                  downloadButton(outputId = "download", label= "Download Table"),
                  DT::dataTableOutput("table")
@@ -70,7 +75,8 @@ ui <- fluidPage(
         tabPanel("Data Exploration",
                  br(),
                  tabsetPanel(
-                   tabPanel("Box Plot",
+                   tabPanel("Summary Chart",
+                              br(),
                               fluidRow(
                                 column(3,
                                        selectizeInput(inputId = "bx_cat_var",
@@ -95,7 +101,8 @@ ui <- fluidPage(
                             br(),
                             plotOutput(outputId = "box_plot")
                    ),
-                   tabPanel("Bar Chart",
+                   tabPanel("Relationship Chart",
+                            br(),
                             fluidRow(
                               column(3,
                                      selectizeInput(inputId = "bar_cat_var",
@@ -112,10 +119,10 @@ ui <- fluidPage(
                                      )
                               ),
                               column(3,
-                                     selectizeInput(inputId = "bar_group_var",
-                                                    label = "Select a numeric variable",
-                                                    selected = "Sell Price",
-                                                    choices = c("Year", "Discount")
+                                     radioButtons(inputId = "bar_group",
+                                                    label = "Select Grouping",
+                                                    selected = "Year",
+                                                    choices = c("Year", "Month", "Month per Year")
                                      )
                               ),
                               column(3,
@@ -127,6 +134,39 @@ ui <- fluidPage(
                             br(),
                             plotOutput(outputId = "bar_plot")
                    ),
+                   tabPanel("Trend Chart",
+                            br(),
+                            fluidRow(
+                              column(3,
+                                     selectizeInput(inputId = "line_num_var1",
+                                                    label = "Select a numeric variable",
+                                                    choices = c("Segment", "Category", "Sub Category"),
+                                                    selected = "Segment"
+                                     )
+                              ),
+                              column(3,
+                                     selectizeInput(inputId = "line_num_var2",
+                                                    label = "Select a numeric variable",
+                                                    selected = "Sell Price",
+                                                    choices = c("Sell Price", "Discount", "Profit")
+                                     )
+                              ),
+                              column(3,
+                                     radioButtons(inputId = "line_group",
+                                                  label = "Select Grouping",
+                                                  selected = "Year",
+                                                  choices = c("Year", "Month", "Month per Year")
+                                     )
+                              ),
+                              column(3,
+                                     br(),
+                                     actionButton(inputId = "disp_line_plot",
+                                                  label = "Display")
+                              ),
+                            ),
+                            br(),
+                            plotOutput(outputId = "line_plot")
+                   )
                 )
           )
       )
@@ -150,9 +190,8 @@ slider_min_max <- function(selection) {
 }
 
 
-# Define server logic required to draw a histogram
+
 server <- function(input, output, session) {
-  #num_vars = c("Sell Price" = "Sell_Price", "" )
   observeEvent(input$sel_num_var, {
     min_max <- slider_min_max(input$sel_num_var)
     choices <-  c("", "Sell price", "Discount", "Profit")
@@ -186,8 +225,8 @@ server <- function(input, output, session) {
                       value = min_max[1])
   })
   plot_data <- reactiveVal()
-  #Action button event
-  observeEvent(input$btn, {
+  # Subset data on button press
+  observeEvent(input$subset_btn, {
     state <- input$state
     if(input$state == "All") {
       state <- levels(store_data$State)
@@ -231,47 +270,88 @@ server <- function(input, output, session) {
     )
   }
   )
+  # Event to render box plots
   observeEvent(input$disp_box_plot, {
     output$box_plot <- renderPlot({
-      cat_var <- str_replace(input$bx_cat_var, " ", "_")
-      num_var <- str_replace(input$bx_num_var, " ", "_")
-      if(is.null(plot_data())) {
-        shinyalert(title = "Data Not Available", "Please select data set using the Subset button")
-      } else {
-        ggplot(data = plot_data(),
-               aes_string(x = cat_var, y = num_var))+
-          geom_boxplot() +
-          #coord_cartesian(ylim = c(-2000, 2000)) +
-          labs(title = paste("Boxplot for", input$bx_num_var, "per",input$bx_cat_var)
-               , x = input$bx_cat_var ) +
-          theme(axis.text.x = element_text(angle = 45, vjust = 0.6))
-      }
+      isolate({
+        cat_var <- str_replace(input$bx_cat_var, " ", "_")
+        num_var <- str_replace(input$bx_num_var, " ", "_")
+        if(is.null(plot_data())) {
+          shinyalert(title = "Data Not Available", "Please select data set using the Subset button")
+        } else {
+          ggplot(data = plot_data(),
+                 aes_string(x = cat_var, y = num_var))+
+            geom_boxplot() +
+            {if (num_var == "Profit") coord_cartesian(ylim = c(-2000, 2000))}+
+            labs(title = paste("Boxplot for", input$bx_num_var, "per",input$bx_cat_var)
+                 , x = input$bx_cat_var ) +
+            theme(axis.text.x = element_text(angle = 45, vjust = 0.6))
+        }
+      })
     })
   })
   observeEvent(input$disp_bar_plot, {
     output$bar_plot <- renderPlot({
-      cat_var <- str_replace(input$bar_cat_var, " ", "_")
-      num_var <- str_replace(input$bar_num_var, " ", "_")
-      if(is.null(plot_data())) {
-        shinyalert(title = "Data Not Available", "Please select data set using the Subset button")
-      } else {
-        if (num_var == "Frequency") {
-          ggplot(data = plot_data(),
-                 aes(x = year(Order_Date), fill = !!sym(cat_var)) +
-            geom_bar(width = 0.5) +
-            labs(x = "Order Year", y = "Count", title = "Segment count by year")
-          #theme(axis.text.x = element_text(angle = 45, vjust = 0.6)
-          )
+      isolate({
+        cat_var <- str_replace(input$bar_cat_var, " ", "_")
+        num_var <- str_replace(input$bar_num_var, " ", "_")
+        group <- input$bar_group
+        if(is.null(plot_data())) {
+          shinyalert(title = "Data Not Available", "Please select data set using the Subset button")
         } else {
-          ggplot(data = plot_data(),
-                 aes(x = year(Order_Date), y = !!sym(num_var), fill = !!sym(cat_var)) +
-                   geom_col(width = 0.5) +
-                   labs(x = "Order Year", y = num_var, title = "T")
-          )
+          if (num_var == "Frequency") {
+            ggplot(data = plot_data(),
+                   aes(x = year(Order_Date), fill = !!sym(cat_var))) +
+              geom_bar(width = 0.5) +
+              labs(x = "Order Year", y = "Count", title = "Segment count by year")
+            #theme(axis.text.x = element_text(angle = 45, vjust = 0.6)
+          } else {
+            if(group == "Year") {
+              ggplot(data = plot_data(),
+                   aes(x = year(Order_Date), y = !!sym(num_var), fill = !!sym(cat_var))) +
+              geom_col(width = 0.5) +
+              labs(x = "Order Year", y = num_var,
+                   title = paste(input$bar_num_var, "per Year for", input$bar_cat_var))
+            } else if(group == "Month") {
+              ggplot(data = plot_data(),
+                     aes(x = month(Order_Date, label = TRUE), y = !!sym(num_var), fill = !!sym(cat_var))) +
+                geom_col(width = 0.5) +
+                labs(x = "Order Month", y = num_var,
+                     title = paste(input$bar_num_var, "per Month for", input$bar_cat_var))
+            } else {
+              ggplot(data = plot_data(),
+                     aes(x = month(Order_Date, label = TRUE), y = !!sym(num_var), fill = !!sym(cat_var))) +
+                geom_col(width = 0.5) +
+                facet_wrap(vars(year(Order_Date))) +
+                labs(x = "Order Month", y = num_var,
+                     title = paste(input$bar_num_var, "per Month for", input$bar_cat_var))
+            }
+          }
         }
-      }
+      })
     })
   })
+  observeEvent(input$disp_line_plot, {
+    output$box_plot <- renderPlot({
+      # isolate({
+      #   num_var1 <- str_replace(input$line_num_var1, " ", "_")
+      #   num_var2 <- str_replace(input$line_num_var2, " ", "_")
+      #   if(is.null(plot_data())) {
+      #     shinyalert(title = "Data Not Available", "Please select data set using the Subset button")
+      #   } else {
+      #     ggplot(data= plot_data(), aes(x =Year)) +
+      #       geom_line(aes(y = sum_Profit/100 , col ="Total Profit")) +
+      #       geom_line(aes(y = sum_Sell_Price/100, col = "Total Selling Price")) +
+      #       geom_point(aes(y = sum_Profit/100)) +
+      #       geom_point(aes(y = sum_Sell_Price/100)) +
+      #       facet_grid(vars(Category)) +
+      #       labs(title="Trend for Profit and Selling price", x = "Year", y = "USD(x100)")
+      #   }
+      # })
+    })
+  })
+
+
 }
 
 # Run the application

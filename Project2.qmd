@@ -59,8 +59,9 @@ Functions for creating  graph
 ```{r}
 #bar_chart <- function(year, state)
 # Products having higest discount
+fl <- "Segment"
 ggplot(data=store_data, 
-       aes(x = year(Order_Date), fill = Segment)) +
+       aes(x = year(Order_Date), fill = !!sym(fl))) +
   geom_bar(width = 0.5) +
   labs(x = "Order Year", y = "Count", title = "Segment count by year")
 ```
