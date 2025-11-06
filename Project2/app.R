@@ -1,20 +1,16 @@
-#
-# This is a Shiny web application. You can run the application by clicking
-# the 'Run App' button above.
-#
-# Find out more about building applications with Shiny here:
-#
-#    https://shiny.posit.co/
-#
 
+#loading libraries
 library(shiny)
 library(DT)
 library(shinyalert)
 library (readxl)
 library(tidyverse)
+library(ggplot2)
 
-store_data <- read_excel("../US Superstore data.xls",
+# Read the excel data, using a name repair function to handle spaces in column names
+store_data <- read_excel("US Superstore data.xls",
                          .name_repair = function(nm) str_replace_all(nm, "[ -]", "_"))
+# Create factors for the categorical variables
 store_data <- store_data |>
   mutate(Ship_Mode = as.factor(Ship_Mode),
          Segment = as.factor(Segment),
@@ -62,18 +58,31 @@ ui <- fluidPage(
       actionButton(inputId = "subset_btn",
                    label = "Subset Data")
     ),
-
+    # Creating a panel set for each of the panels.
+    # Exploratory data panel uses sub panels
     mainPanel(
       tabsetPanel(
         tabPanel("About",
-                  "This UI gives the summary of US Superstore data. Users can analyze and explore data visually through interactive graphs like ggplot and tables.Summary statistics are used to check statistics like mean max min quartiles which gives user understand data's range and distribution.",
-                 "Purpose: Users can forecast data through selecting the slidebar and buttons"   ),
+                  br(),
+                  h4("This Shiny App provides analysis of US Superstore data  from year 2014 to 2018."),
+                  "Purpose:", br(),
+                  "Users can select, download and visualize the data using data tables and plots.", br(),
+                  "To begin, users should select the dataset to analyze on using the left panel that provides some of the key columns to subset on",br(),
+                  "Press the", em("Subset"), "button to generate the dataset to analyze",
+                  br(),
+                  "After selecting the data users can use the tab panels on the right to visualize the data. Some key columns help in selecting approprite plots",
+                  br(),
+                  "Visualization appear after the", em("Display")," button is clicked",
+                  br(), br(),
+                  "Data Source:",a("https://www.kaggle.com/datasets/juhi1994/superstore?resource=download"),
+                 ),
         tabPanel("Data Download",
                  downloadButton(outputId = "download", label= "Download Table"),
                  DT::dataTableOutput("table")
                  ),
         tabPanel("Data Exploration",
                  br(),
+                 #Add panels for each of the different types of charts and graphs
                  tabsetPanel(
                    tabPanel("Summary Chart",
                               br(),
@@ -140,8 +149,8 @@ ui <- fluidPage(
                               column(3,
                                      selectizeInput(inputId = "line_num_var1",
                                                     label = "Select a numeric variable",
-                                                    choices = c("Segment", "Category", "Sub Category"),
-                                                    selected = "Segment"
+                                                    choices = c("Sell Price", "Discount", "Profit"),
+                                                    selected = "Profit"
                                      )
                               ),
                               column(3,
@@ -154,8 +163,8 @@ ui <- fluidPage(
                               column(3,
                                      radioButtons(inputId = "line_group",
                                                   label = "Select Grouping",
-                                                  selected = "Year",
-                                                  choices = c("Year", "Month", "Month per Year")
+                                                  selected = "Category",
+                                                  choices = c("Segment", "Category", "Region")
                                      )
                               ),
                               column(3,
@@ -166,8 +175,13 @@ ui <- fluidPage(
                             ),
                             br(),
                             plotOutput(outputId = "line_plot")
+                   ),
+                   tabPanel("Key Numerical Summary",
+                            br(),
+                            DT::dataTableOutput("summ")
+
                    )
-                )
+                ),
           )
       )
     )
@@ -188,8 +202,6 @@ slider_min_max <- function(selection) {
   }
   return(c(min_val, max_val))
 }
-
-
 
 server <- function(input, output, session) {
   observeEvent(input$sel_num_var, {
@@ -250,6 +262,7 @@ server <- function(input, output, session) {
       if(num_var2 == "Sell price") num_var2 <- "Sell_Price"
       num_var2_value <- input$num_var2
     }
+    # subsetting data
     data_subset <- store_data |>
       filter(
         State %in% state,
@@ -259,6 +272,15 @@ server <- function(input, output, session) {
       {if (!is.null(num_var1)) filter(., !!sym(num_var1) <= num_var1_value) else .} %>%
       {if (!is.null(num_var2)) filter(., !!sym(num_var2) <= num_var2_value) else .}
     plot_data(data_subset)
+    summary <- plot_data() |>
+      group_by(year(Order_Date), State, Segment, Category) |>
+      summarize(across(c(Profit, Sell_Price, Discount), .fns = list( "sum" = sum, "mean" = mean,
+                                                                     "median" = median,
+                                                                     "min" = min ,
+                                                                     "max" = max),
+                       .names = "{.fn}_{.col}"))
+
+    output$summ <- DT::renderDataTable(summary)
     output$table = DT::renderDataTable(data_subset)
     output$download <- downloadHandler(
       filename = function() {
@@ -290,6 +312,7 @@ server <- function(input, output, session) {
       })
     })
   })
+  # Event for bar plots display button
   observeEvent(input$disp_bar_plot, {
     output$bar_plot <- renderPlot({
       isolate({
@@ -304,7 +327,6 @@ server <- function(input, output, session) {
                    aes(x = year(Order_Date), fill = !!sym(cat_var))) +
               geom_bar(width = 0.5) +
               labs(x = "Order Year", y = "Count", title = "Segment count by year")
-            #theme(axis.text.x = element_text(angle = 45, vjust = 0.6)
           } else {
             if(group == "Year") {
               ggplot(data = plot_data(),
@@ -331,26 +353,37 @@ server <- function(input, output, session) {
       })
     })
   })
+  # Handling events for display of line plots
   observeEvent(input$disp_line_plot, {
-    output$box_plot <- renderPlot({
-      # isolate({
-      #   num_var1 <- str_replace(input$line_num_var1, " ", "_")
-      #   num_var2 <- str_replace(input$line_num_var2, " ", "_")
-      #   if(is.null(plot_data())) {
-      #     shinyalert(title = "Data Not Available", "Please select data set using the Subset button")
-      #   } else {
-      #     ggplot(data= plot_data(), aes(x =Year)) +
-      #       geom_line(aes(y = sum_Profit/100 , col ="Total Profit")) +
-      #       geom_line(aes(y = sum_Sell_Price/100, col = "Total Selling Price")) +
-      #       geom_point(aes(y = sum_Profit/100)) +
-      #       geom_point(aes(y = sum_Sell_Price/100)) +
-      #       facet_grid(vars(Category)) +
-      #       labs(title="Trend for Profit and Selling price", x = "Year", y = "USD(x100)")
-      #   }
-      # })
+    output$line_plot <- renderPlot({
+      isolate({
+        num_var1 <- str_replace(input$line_num_var1, " ", "_")
+        num_var2 <- str_replace(input$line_num_var2, " ", "_")
+        validate(
+          need(input$line_num_var1 != input$line_num_var2, "Choose different numerical variables visualize")
+        )
+        if(is.null(plot_data())) {
+          shinyalert(title = "Data Not Available", "Please select data set using the Subset button")
+        } else {
+          dt <- plot_data() |>
+            group_by(year(Order_Date), !!sym(input$line_group)) |>
+            summarize(across(c(!!sym(num_var1), !!sym(num_var2) ), .fns = list( "sum" = sum),
+                             .names = "{.fn}_{.col}")) |>
+            rename(Year = `year(Order_Date)`)
+          sum_num1 <- paste0("sum_", num_var1)
+          sum_num2 <- paste0("sum_", num_var2)
+          ggplot(data= dt, aes(x =Year)) +
+            geom_line(aes(y = !!sym(sum_num1)/100, col = paste("Total", input$line_num_var1))) +
+            geom_line(aes(y = !!sym(sum_num2)/100, col = paste("Total", input$line_num_var2))) +
+            geom_point(aes(y = !!sym(sum_num1)/100)) +
+            geom_point(aes(y = !!sym(sum_num2)/100)) +
+            facet_grid(vars(!!sym(input$line_group))) +
+            labs(x = "Year", y = "USD(x100)",
+                 title=paste("Trend for", input$line_num_var1, "and", input$line_num_var2))
+        }
+      })
     })
   })
-
 
 }
 

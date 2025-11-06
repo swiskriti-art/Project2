@@ -5,6 +5,7 @@ editor: visual
 ---
 
 Reading data from excel file
+
 ```{r}
 library(tidyverse)
 library (readxl)
@@ -14,7 +15,9 @@ store_data <- read_excel("US Superstore data.xls",
 store_data
 
 ```
-Creating factors for categrorical vars 
+
+Creating factors for categorical vars
+
 ```{r}
 store_data <- store_data |>
  mutate(Ship_Mode = as.factor(Ship_Mode),
@@ -29,21 +32,25 @@ store_data
 ```
 
 Creating one way contingency table
+
 ```{r}
 table(store_data$Segment)
 
 ```
+
 Creating two way contingency table
+
 ```{r}
 table (store_data$Segment, store_data$Region)
 
 ```
-Numerical variables
+
+Numerical variables summaries
 
 ```{r}
 summary <- store_data |>
   group_by(year(Order_Date), State, Segment, Category) |>
-  summarize(across(c(Profit, Sell_Price), .fns = list( "sum" = sum, "mean" = mean,
+  summarize(across(c(Profit, Sell_Price, Discount), .fns = list( "sum" = sum, "mean" = mean,
                                                          "median" = median,
                                                          "min" = min ,
                                                          "max" = max),
@@ -55,7 +62,8 @@ summary |> view()
 
 ```
 
-Functions for creating  graph
+Functions for creating graph
+
 ```{r}
 #bar_chart <- function(year, state)
 # Products having higest discount
@@ -65,6 +73,7 @@ ggplot(data=store_data,
   geom_bar(width = 0.5) +
   labs(x = "Order Year", y = "Count", title = "Segment count by year")
 ```
+ggplot for profit per month for category with facet
 
 ```{r}
 ggplot(data = store_data  |>
@@ -75,6 +84,8 @@ ggplot(data = store_data  |>
   theme(axis.text.x = element_text(angle =45, vjust = 0.6)) +
   labs(x = "", y = "Profit", title = "Profit per month for category")
 ```
+ggplot for box plot for loss per category
+
 ```{r}
 ggplot(data = store_data  |>
          filter(Profit < 0), 
@@ -85,7 +96,8 @@ ggplot(data = store_data  |>
   labs(x = "", y = "Profit", title = "Loss per month for category")
 
 ```
-line Graph
+ ggplot for boxplot for Profit per category
+ 
 ```{r}
 ggplot(data = store_data, 
        mapping = aes(x= Category, y = Profit, fill= Category))+
@@ -94,6 +106,8 @@ ggplot(data = store_data,
   labs(title = "Boxplot for Profit per Category")
 
 ```
+ggplot for profit per sub-category
+
 ```{r}
 ggplot(data = store_data, 
        mapping = aes(x= Sub_Category, y = Profit, fill= Sub_Category))+
@@ -102,8 +116,11 @@ ggplot(data = store_data,
   labs(title = "Boxplot for profit per Sub-category", x= "Product Sub-Category") +
   theme(axis.text.x = element_text(angle = 45, vjust = 0.6)) 
 ```
+ggplot for trend for profit and selling price
+
 ```{r}
 # Comparing total profit vs total selling price for product categories
+
 profit_data <- store_data |>
   group_by(year(Order_Date), Category) |>
   summarize(across(c(Profit, Sell_Price), .fns = list( "sum" = sum),
@@ -119,8 +136,3 @@ ggplot(data= profit_data, aes(x =Year)) +
   labs(title="Trend for Profit and Selling price", x = "Year", y = "USD(x100)")
 
 ```
-
-
- 
-
-
